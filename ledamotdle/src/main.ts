@@ -60,9 +60,10 @@ function mountLayout(root: HTMLElement) {
         <div class="w-full max-w-md px-4 py-0 space-y-6">
           <div class="flex items-baseline justify-between">
             <div class="text-sm text-slate-300 flex flex-col">
-              <div> Score: <span id="score" class="font-semibold tabular-nums">0</span></div>
-              <div> Accuracy: <span id="accuracy" class="font-semibold tabular-nums">0</span></div>
+              <div> Rätt: <span id="score" class="font-semibold tabular-nums">0</span></div>
+              <div> <span id="accuracy" class="font-semibold tabular-nums">0</span></div>
             </div>
+
             <h1 class="text-3xl font-semibold tracking-tight">Ledamotdle</h1>
             <div class="text-sm text-slate-300">
               <div> Streak: <span id="streak" class="font-semibold tabular-nums">0</span></div>
@@ -94,14 +95,17 @@ function mountLayout(root: HTMLElement) {
               class="rounded-xl px-3 py-2 text-sm font-medium bg-slate-800 hover:bg-slate-700 ring-1 ring-white/10">
               Reset
             </button>
+
             <button id="share"
               class="rounded-xl px-3 py-2 text-sm font-medium bg-slate-800 hover:bg-slate-700 ring-1 ring-white/10">
               Dela 📤
             </button>
+
           </div>
           <div class="mt-4 text-xs text-slate-500 text-right">
             Skapad av <a href="https://www.linkedin.com/in/erik--risberg/" target="_blank" class="hover:text-slate-300 underline">Erik Risberg</a>
           </div>
+
           </div>
         </div>
       </div>
@@ -261,7 +265,7 @@ async function main() {
   });
 
   shareBtn.addEventListener("click", () => {
-    const text = `🏛️ Ledamotdle\nPoäng: ${score}/${total}\nRätt: ${accuracy + "%"}\nBest Streak: ${bestStreak}
+    const text = `🏛️ Ledamotdle\nRätt: ${score}/${total} ${accuracy + "%"}\nBest Streak: ${bestStreak}
     \n Ledamotdle.se`;
     navigator.clipboard.writeText(text).then(() => {
       shareBtn.textContent = "Kopierat!";
