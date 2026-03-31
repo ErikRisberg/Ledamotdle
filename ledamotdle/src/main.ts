@@ -99,6 +99,9 @@ function mountLayout(root: HTMLElement) {
               Dela 📤
             </button>
           </div>
+          <div class="mt-4 text-xs text-slate-500 text-right">
+            Skapad av <a href="https://www.linkedin.com/in/erik--risberg/" target="_blank" class="hover:text-slate-300 underline">Erik Risberg</a>
+          </div>
           </div>
         </div>
       </div>
