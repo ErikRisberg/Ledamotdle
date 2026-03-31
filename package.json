@@ -1,7 +1,0 @@
-{
-  "dependencies": {
-    "create-vite": "^8.2.0",
-    "fast-xml-parser": "^5.3.3",
-    "npx": "^10.2.2"
-  }
-}
