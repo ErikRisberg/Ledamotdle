@@ -180,8 +180,11 @@ async function main() {
   let mode: "daily" | "endless" = "endless";
   let dailyMembers: Ledamot[] = [];
   let dailyIndex = 0;
+  let currentDailyIndex: number | null = null;
+  let dailyResults: boolean[] = [];
 
-  const upcoming: Ledamot[] = [];
+  type UpcomingEntry = { member: Ledamot; dailyIndex: number | null };
+  const upcoming: UpcomingEntry[] = [];
   const preloaded = new Set<string>();
   const inflight = new Map<string, Promise<void>>();
 
@@ -260,17 +263,18 @@ async function main() {
     }
   }
   
-  function pickNext(): Ledamot | null {
-    if (mode =="daily") {
+  function pickNext(): UpcomingEntry | null {
+    if (mode == "daily") {
       if (dailyIndex >= dailyMembers.length) return null;
-      return dailyMembers[dailyIndex++];
+      const idx = dailyIndex++;
+      return { member: dailyMembers[idx], dailyIndex: idx };
     }
 
     const remaining = members.filter((m) => !used.has(m.id));
     if (remaining.length === 0) used.clear();
     const pick = sample(remaining.length ? remaining : members);
     used.add(pick.id);
-    return pick;
+    return { member: pick, dailyIndex: null };
   }
 
   function preloadImage(url: string | undefined | null): Promise<void> {
@@ -284,11 +288,8 @@ async function main() {
       img.decoding = "async";
       img.onload = async () => {
         try {
-          // Ensure decode is done before we consider it warm.
-          // (Not all browsers support decode; ignore if it fails.)
           await (img.decode?.() ?? Promise.resolve());
         } catch {
-          // ignore
         }
         preloaded.add(url);
         inflight.delete(url);
@@ -313,19 +314,18 @@ async function main() {
     }
   }
 
-  function takeUpcoming(): Ledamot | null {
+  function takeUpcoming(): UpcomingEntry | null {
     ensureUpcoming(1);
     return upcoming.shift() ?? null;
   }
 
-  function peekUpcoming(): Ledamot | null {
+  function peekUpcoming(): UpcomingEntry | null {
     ensureUpcoming(1);
     return upcoming[0] ?? null;
   }
 
   function preloadRoundAssets(currentMember: Ledamot | null) {
-    const nextMember = peekUpcoming();
-    // Warm current + next in the background; next is the most valuable.
+    const nextMember = peekUpcoming()?.member ?? null;
     void preloadImage(currentMember?.imageLocal);
     void preloadImage(nextMember?.imageLocal);
   }
@@ -335,8 +335,6 @@ async function main() {
     for (const url of urls) void preloadImage(url);
   }
 
-  // Preload party logos immediately on page load (before choosing a mode),
-  // so button logos appear instantly when the game starts.
   preloadPartyLogos();
 
   members = await membersPromise;
@@ -416,10 +414,9 @@ async function main() {
       return;
     }
 
-    current = next;
-    // Keep height reserved (avoid layout shift) but don't show a loading label.
+    current = next.member;
+    currentDailyIndex = next.dailyIndex;
     status.textContent = "\u00A0";
-    // If the image is already cached/decoded, onload fires very quickly.
     photo.onload = () => {
       status.textContent = "\u00A0";
     };
@@ -446,6 +443,9 @@ async function main() {
     reveal.textContent = `${current.namn} — ${PARTY_LABELS[current.party] ?? current.party}`;
     
     const correct = party === current.party;
+    if (mode === "daily" && currentDailyIndex !== null) {
+      dailyResults[currentDailyIndex] = correct;
+    }
     if (correct) {
       score += 1;
       streak += 1;
@@ -472,7 +472,7 @@ async function main() {
 
   shareBtn.addEventListener("click", () => {
     const text = `🏛️ Ledamotdle\nRätt: ${score}/${total} ${accuracy + "%"}\nBest Streak: ${bestStreak}
-    \n Ledamotdle.se`;
+    \n  https://ledamotdle.se/`;
     navigator.clipboard.writeText(text).then(() => {
       shareBtn.textContent = "Kopierat!";
       setTimeout(() => shareBtn.textContent = "Dela 📤", 2000);
@@ -483,6 +483,8 @@ async function main() {
     mode = "daily";
     dailyMembers = getDailyMembers(members);
     dailyIndex = 0;
+    currentDailyIndex = null;
+    dailyResults = new Array(10).fill(false);
     upcoming.length = 0;
     el<HTMLDivElement>("mode-label").textContent = "Daily";
     menu.classList.add("hidden");
@@ -490,7 +492,7 @@ async function main() {
     setScore();
     preloadPartyLogos();
     ensureUpcoming(2);
-    preloadRoundAssets(peekUpcoming());
+    preloadRoundAssets(peekUpcoming()?.member ?? null);
     nextRound();
   });
 
@@ -502,7 +504,7 @@ async function main() {
     game.classList.remove("hidden");
     preloadPartyLogos();
     ensureUpcoming(2);
-    preloadRoundAssets(peekUpcoming());
+    preloadRoundAssets(peekUpcoming()?.member ?? null);
     nextRound();
   });
 
@@ -510,8 +512,8 @@ async function main() {
   endShareBtn.addEventListener("click", () => {
     const today = new Date();
     const dateStr = today.toLocaleDateString("sv-SE");
-    const emoji = Array.from({length: 10}, (_, i) => i < score ? "🟩" : "🟥").join("");
-    const text = `🏛️ Ledamotdle Daily ${dateStr}\n${score}/10\n${emoji}\n Ledamotdle.se`;
+    const emoji = Array.from({ length: 10 }, (_, i) => (dailyResults[i] ? "🟩" : "🟥")).join("");
+    const text = `🏛️ Ledamotdle Daily ${dateStr}\n${score}/10\n${emoji}\n  https://ledamotdle.se/`;
     
     navigator.clipboard.writeText(text).then(() => {
       endShareBtn.textContent = "Kopierat! ✅";
