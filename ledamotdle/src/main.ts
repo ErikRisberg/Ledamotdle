@@ -205,9 +205,11 @@ async function main() {
 
     function update() {
       const now = new Date();
-      const midnight = new Date();
-      midnight.setHours(24, 0, 0, 0);
-      const diff = midnight.getTime() - now.getTime();
+      // Use UTC day boundary so "Daily" is consistent across timezones.
+      const nextUtcMidnight = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0)
+      );
+      const diff = nextUtcMidnight.getTime() - now.getTime();
 
       const h = Math.floor(diff / 1000 / 60 / 60);
       const m = Math.floor((diff / 1000 / 60) % 60);
@@ -227,16 +229,31 @@ async function main() {
     let s = sneed;
     return () => {
       s = (s * 1664525 + 1013904223) & 0xffffffff;
-      return (s >>> 0) / 0xffffffff;
+      // Normalize to [0, 1) (never 1.0) to avoid edge cases in shuffles.
+      return (s >>> 0) / 0x100000000;
     };
   }
 
+  function utcDaySeedNumber(date = new Date()): number {
+    return (
+      date.getUTCFullYear() * 10000 +
+      (date.getUTCMonth() + 1) * 100 +
+      date.getUTCDate()
+    );
+  }
+
+  function shuffleInPlace<T>(arr: T[], rng: () => number): void {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+
   function getDailyMembers(members: Ledamot[], count = 10): Ledamot[] {
-    const today = new Date();
-    const sneed = today.getFullYear() * 10000 + (today.getMonth() +1) * 100 + today.getDate();
-    const rng = randomSeed(sneed);
-    const shuffled = [...members].sort(() => rng() - 0.5);
-    return shuffled.slice(0,count);
+    const rng = randomSeed(utcDaySeedNumber());
+    const shuffled = [...members];
+    shuffleInPlace(shuffled, rng);
+    return shuffled.slice(0, count);
   }
 
 
@@ -511,7 +528,7 @@ async function main() {
 
   endShareBtn.addEventListener("click", () => {
     const today = new Date();
-    const dateStr = today.toLocaleDateString("sv-SE");
+    const dateStr = new Intl.DateTimeFormat("sv-SE", { timeZone: "UTC" }).format(today);
     const emoji = Array.from({ length: 10 }, (_, i) => (dailyResults[i] ? "🟩" : "🟥")).join("");
     const text = `🏛️ Ledamotdle Daily ${dateStr}\n${score}/10\n${emoji}\n  https://ledamotdle.se/`;
     
